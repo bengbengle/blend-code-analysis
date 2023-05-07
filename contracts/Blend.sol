@@ -380,13 +380,11 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
      * @param offer Loan offer
      * @param signature Offer signatures
      */
-    function borrowerRefinance(
-        Lien calldata lien,
-        uint256 lienId,
-        uint256 loanAmount,
-        LoanOffer calldata offer,
-        bytes calldata signature
-    ) external validateLien(lien, lienId) lienIsActive(lien) {
+    function borrowerRefinance(Lien calldata lien, uint256 lienId, uint256 loanAmount, LoanOffer calldata offer, bytes calldata signature) 
+        external 
+        validateLien(lien, lienId) 
+        lienIsActive(lien) 
+    {
         if (msg.sender != lien.borrower) {
             revert Unauthorized();
         }
@@ -552,7 +550,7 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
 
     /**
      * @notice Purchase a locked NFT; repay the initial loan; lock the token as collateral for a new loan 
-     * @notice 购买锁定的 NFT； 偿还初始贷款； 将代币作为抵押品 新贷款
+     * @notice 购买锁定的 NFT, 偿还初始贷款, 将此 NFT 作为新贷款的抵押品 
      * @param lien Lien preimage struct                                                 抵押品 
      * @param sellInput Sell offer and signature                                        卖出报价和签名
      * @param loanInput Loan offer and signature                                        贷款报价和签名
@@ -644,7 +642,7 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
         lienIsActive(lien)                                                  
     {                      
 
-        (uint256 priceAfterFees, uint256 debt) = _buyLocked(lien, offer, signature);    // 购买锁定的 NFT
+        (uint256 priceAfterFees, uint256 debt) = _buyLocked(lien, offer, signature);    // 购买锁定的 NFT, 返回 价格 和 贷款
 
         /* Send token to buyer. */
         lien.collection.safeTransferFrom(address(this), msg.sender, lien.tokenId);      // 将代币发送给买家
@@ -670,12 +668,12 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
         validateLien(lien, lienId) 
         lienIsActive(lien) 
     {
-        if (execution.makerOrder.order.trader == address(this) || msg.sender != lien.borrower) {
+        if (execution.makerOrder.order.trader == address(this) || msg.sender != lien.borrower) {    // 如果卖方订单的交易者 == Blend 或者 msg.sender != 借款人
             revert Unauthorized();
         }
 
         /* Repay loan with funds received from the sale. */
-        uint256 debt = _repay(lien, lienId);
+        uint256 debt = _repay(lien, lienId);                            // 债务: 用从销售中获得的资金偿还贷款
 
         /* Create sell side order from Blend. */ 
         Order memory sellOrder = Order({                                // 从 Blend 创建 Blur Exchange 的卖方订单
@@ -687,14 +685,14 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
             amount: 1,
             paymentToken: address(pool),
             price: execution.makerOrder.order.price,
-            listingTime: execution.makerOrder.order.listingTime + 1, // listingTime determines maker/taker
-            expirationTime: type(uint256).max,
-            fees: new Fee[](0),
-            salt: lienId, // prevent reused order hash
-            extraParams: "\x01" // require oracle signature
+            listingTime: execution.makerOrder.order.listingTime + 1, // listingTime determines maker/taker // listingTime 来确定 maker/taker
+            expirationTime: type(uint256).max,                       // no expiration
+            fees: new Fee[](0),                                      // no fees
+            salt: lienId, // prevent reused order hash               // 防止重复使用订单哈希
+            extraParams: "\x01" // require oracle signature          // 需要 oracle 签名
         });
 
-        Input memory sell = Input({
+        Input memory sell = Input({                                     // 卖方订单
             order: sellOrder,
             v: 0,
             r: bytes32(0),
@@ -705,22 +703,23 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
         });
 
         /* Execute marketplace order. */
-        uint256 balanceBefore = pool.balanceOf(address(this));
-        lien.collection.approve(_DELEGATE, lien.tokenId);
-        _EXCHANGE.execute(sell, execution.makerOrder);
+        uint256 balanceBefore = pool.balanceOf(address(this));      // 执行市场订单前的余额
+        lien.collection.approve(_DELEGATE, lien.tokenId);           // 批准抵押品
 
-        /* Determine the funds received from the sale (after fees). */
-        uint256 amountReceivedFromSale = pool.balanceOf(address(this)) - balanceBefore;
-        if (amountReceivedFromSale < debt) {
+        _EXCHANGE.execute(sell, execution.makerOrder);              // 执行市场订单
+
+        /* Determine the funds received from the sale (after fees). */                  
+        uint256 amountReceivedFromSale = pool.balanceOf(address(this)) - balanceBefore;             // 出售后收到的资金（扣除费用后）
+        if (amountReceivedFromSale < debt) {                                                        // 如果出售后收到的资金 < 债务
             revert InvalidRepayment();
         }
 
         /* Repay lender. */
-        pool.transferFrom(address(this), lien.lender, debt);
+        pool.transferFrom(address(this), lien.lender, debt);                                        // 偿还贷款
 
         /* Send surplus to borrower. */
-        unchecked {
-            pool.transferFrom(address(this), lien.borrower, amountReceivedFromSale - debt);
+        unchecked {                                                                                 // 卖出的金额 - 债务
+            pool.transferFrom(address(this), lien.borrower, amountReceivedFromSale - debt);         // 将剩余资金发送给借款人
         }
     }
 
@@ -760,9 +759,9 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
     }
 
     /**
-     * @notice Validates, fulfills, and transfers fees on sell offer
-     * @param sellOffer Sell offer
-     * @param sellSignature Sell offer signature
+     * @notice Validates, fulfills, and transfers fees on sell offer            // 验证、履行并转移卖出报价的费用
+     * @param sellOffer Sell offer                                              // 卖出报价
+     * @param sellSignature Sell offer signature                                // 卖出报价签名
      */
     function _takeSellOffer(
         SellOffer calldata sellOffer,
@@ -831,7 +830,7 @@ contract Blend is IBlend, OfferController, UUPSUpgradeable {
     /////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice buyToBorrow wrapper that deposits ETH to pool
+     * @notice buyToBorrow wrapper that deposits ETH to pool          // buyToBorrow 将 ETH 存入 Pool 
      * @notice Pool 中质押的 ETH
      */
     function buyToBorrowETH(

@@ -50,15 +50,7 @@ struct LienPointer {
     uint256 lienId;
 }
 
-struct SellOffer {
-    address borrower;
-    uint256 lienId;
-    uint256 price;
-    uint256 expirationTime;
-    uint256 salt;
-    address oracle;
-    Fee[] fees;
-}
+
 
 struct Lien {                   // 抵押品
     address lender;             // 出借方 
@@ -90,9 +82,20 @@ struct LoanInput {
     bytes signature;        // 签名
 }
 
-struct SellInput {
-    SellOffer offer;
-    bytes signature;
+
+struct SellOffer {                  // 卖出 Offer , listing
+    address borrower;               // 借款方
+    uint256 lienId;                 // 抵押品 id , lienId 
+    uint256 price;                  // 价格
+    uint256 expirationTime;         // 过期时间
+    uint256 salt;                   // 随机数
+    address oracle;                 // 预言机
+    Fee[] fees;                     // 手续费
+}
+
+struct SellInput {                  // 卖出 Input
+    SellOffer offer;                // 卖出 Offer
+    bytes signature;                // 签名
 }
 
 struct Execution {
